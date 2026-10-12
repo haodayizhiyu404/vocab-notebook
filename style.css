@@ -1,0 +1,115 @@
+/* 生词本扩展样式 —— 全显式深色配色，不依赖主题变量（避免深底深字） */
+
+/* 选区悬浮按钮 */
+#vocab-sel-btn {
+    position: fixed; z-index: 10001; display: none;
+    padding: 4px 10px; border-radius: 8px; cursor: pointer;
+    background: #2e7d32; color: #fff; font-size: 13px;
+    box-shadow: 0 2px 10px rgba(0,0,0,.4); user-select: none;
+}
+#vocab-sel-btn:hover { background: #359e3c; }
+
+/* 弹窗：尺寸与位置由 menu.js 按 visualViewport 动态计算（适配缩放/移动布局），
+   CSS 只负责外观与上下限兜底 */
+#vocab-modal { position: fixed; top: 0; left: 0; z-index: 10000; display: block; }
+#vocab-modal .vocab-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.55); }
+#vocab-modal .vocab-window {
+    position: fixed; z-index: 1;
+    width: min(560px, 92vw); height: min(560px, 92vh);
+    display: flex; flex-direction: column;
+    background: #1e1e2a; color: #e8e8ef;
+    border: 1px solid #444; border-radius: 12px;
+    box-shadow: 0 10px 40px rgba(0,0,0,.6); overflow: hidden;
+}
+.vocab-header { display: flex; align-items: center; gap: 10px; flex: 0 0 auto;
+    padding: 12px 16px; font-size: 15px; font-weight: bold;
+    border-bottom: 1px solid #444; color: #e8e8ef; }
+.vocab-header #vocab-close { margin-left: auto; width: 28px; height: 28px;
+    border: none; border-radius: 6px; cursor: pointer;
+    background: #8b3a3a; color: #fff; }
+.vocab-badge { font-size: 12px; font-weight: normal; color: #ffb84d; }
+
+.vocab-tabs { display: flex; gap: 4px; padding: 8px 12px 0; flex: 0 0 auto; }
+.vocab-tab { padding: 6px 16px; border: none; border-radius: 8px 8px 0 0;
+    cursor: pointer; font-size: 13px; background: transparent; color: #e8e8ef; opacity: .6; }
+.vocab-tab.active { opacity: 1; background: rgba(255,255,255,.08); }
+.vocab-tab-content { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 14px 16px;
+    background: rgba(255,255,255,.04);
+    border-top: 1px solid #444; color: #e8e8ef; }
+
+/* 复习卡 */
+.vocab-card { cursor: pointer; border-radius: 10px; padding: 24px 20px;
+    background: rgba(255,255,255,.06); color: #e8e8ef; text-align: center; }
+.vocab-card.front { height: 320px; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 12px; box-sizing: border-box; }
+.vocab-card.back { cursor: default; text-align: left; }
+.vocab-word { font-size: 28px; font-weight: bold; color: #fff; }
+.vocab-word.small { font-size: 18px; }
+.vocab-word-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.vocab-flip-hint { font-size: 12px; color: #999; }
+.vocab-sense { margin: 10px 0; padding: 10px 12px; border-radius: 8px;
+    background: rgba(255,255,255,.04); color: #e8e8ef; }
+.vocab-sense.ctx { border-left: 3px solid #6cb2ff; }
+.vocab-sense-head { margin-bottom: 4px; color: #e8e8ef; }
+.vocab-ctx-badge { font-size: 11px; color: #6cb2ff; border: 1px solid #6cb2ff;
+    border-radius: 4px; padding: 0 4px; margin-left: 6px; }
+.vocab-example { font-size: 13px; color: #cfd8e3; font-style: italic; margin: 4px 0; }
+.vocab-example-cn { font-size: 13px; color: #b8c4d4; margin: 2px 0 8px; }
+.vocab-colloc { font-size: 12px; color: #a9b4c4; margin-top: 8px; padding-top: 6px;
+    border-top: 1px solid rgba(255,255,255,.09); }
+.vocab-note { font-size: 12px; color: #ffd97a; margin-top: 8px; padding-top: 6px;
+    border-top: 1px solid rgba(255,255,255,.09); }
+.vocab-source { font-size: 11px; color: #8a93a5; margin-top: 10px; padding-top: 6px;
+    border-top: 1px solid rgba(255,255,255,.09); }
+.vocab-source-cn { font-size: 12px; color: #b8c4d4; margin-top: 3px; }
+.vocab-example-row { display: flex; align-items: flex-start; gap: 6px; margin: 4px 0; }
+.vocab-example-row .vocab-example { margin: 0; }
+.vocab-mini-speak { width: 22px; height: 22px; padding: 0; flex: 0 0 22px;
+    border: none; border-radius: 50%; cursor: pointer; font-size: 11px;
+    background: rgba(255,255,255,.12); color: #fff; }
+.vocab-mini-speak:hover { background: #2b6cb0; }
+
+.vocab-speak-btn { width: 34px; height: 34px; padding: 0; border: none;
+    border-radius: 50%; cursor: pointer; font-size: 15px;
+    background: #2b6cb0; color: #fff; flex: 0 0 auto; }
+.vocab-speak-btn:hover { background: #3a80cc; }
+
+.vocab-grade-row { display: flex; gap: 10px; margin-top: 14px; }
+.vocab-grade { flex: 1; padding: 10px 0; border: none; border-radius: 8px;
+    cursor: pointer; font-size: 14px; color: #fff; }
+.vocab-grade.again { background: #8b3a3a; }
+.vocab-grade.hard { background: #8a6d1d; }
+.vocab-grade.good { background: #2e7d32; }
+.vocab-progress { text-align: center; font-size: 12px; color: #8a93a5; margin-top: 10px; }
+.vocab-empty { text-align: center; padding: 30px 0; color: #8a93a5; }
+
+/* 词表 */
+.vocab-toolbar { display: flex; gap: 8px; margin-bottom: 10px; }
+.vocab-toolbar input, .vocab-toolbar select { flex: 1; min-width: 0;
+    background: rgba(255,255,255,.07); border: 1px solid #555; color: #e8e8ef;
+    border-radius: 6px; padding: 5px 8px; }
+.vocab-list { display: flex; flex-direction: column; gap: 6px; }
+.vocab-item { border-radius: 8px; background: rgba(255,255,255,.04); color: #e8e8ef; }
+.vocab-item-head { display: flex; align-items: center; gap: 8px;
+    padding: 8px 10px; cursor: pointer; color: #e8e8ef; }
+.vocab-item-speak { width: 24px; height: 24px; padding: 0; flex: 0 0 24px;
+    border: none; border-radius: 50%; cursor: pointer; font-size: 12px;
+    background: #2b6cb0; color: #fff; }
+.vocab-item-meaning { flex: 1; min-width: 0; font-size: 12px; color: #b8c4d4;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vocab-item-due { font-size: 11px; color: #8a93a5; flex: 0 0 auto; }
+.vocab-item-del { width: 26px; height: 26px; padding: 0; flex: 0 0 26px;
+    border: none; border-radius: 6px; cursor: pointer; background: #8b3a3a; }
+.vocab-item-detail { padding: 4px 12px 12px; color: #e8e8ef; }
+.vocab-hint { font-size: 12px; margin: 6px 0; }
+#vocab-tab-content .vocab-hint { color: #8a93a5; }
+.vocab-data-info { font-size: 12px; color: #a9b4c4; line-height: 1.7; margin-bottom: 12px; }
+.vocab-data-info code { background: rgba(255,255,255,.1); color: #e8e8ef;
+    padding: 1px 5px; border-radius: 4px; }
+.vocab-data-row { display: flex; gap: 10px; margin: 8px 0; }
+.vocab-data-row button { padding: 8px 14px; border: none; border-radius: 8px;
+    cursor: pointer; background: #2b6cb0; color: #fff; }
+
+/* 扩展设置抽屉里的开关行：颜色跟随主题（抽屉是主题自己的界面，不强制深色） */
+.vocab-setting-row { display: flex; align-items: center; gap: 8px;
+    font-size: 13px; margin: 8px 0; cursor: pointer; }

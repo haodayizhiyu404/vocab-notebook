@@ -1,0 +1,14 @@
+{
+    "display_name": "生词本 (Vocab Notebook)",
+    "loading_order": 200,
+    "requires": [],
+    "optional": [],
+    "js": "index.js",
+    "css": "style.css",
+    "author": "haodayizhiyu404",
+    "version": "0.3.5",
+    "homePage": "https://github.com/haodayizhiyu404/TTS",
+    "hooks": {
+        "activate": "init"
+    }
+}
