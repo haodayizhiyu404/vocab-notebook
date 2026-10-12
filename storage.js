@@ -6,7 +6,6 @@
  * 世界书条目结构：key=[单词], comment=完整记录的 JSON 字符串, content=空（不注入提示词）
  */
 
-import { getRequestHeaders } from '../../../../script.js';
 import { newSrs } from './srs.js';
 
 const WORLD_NAME = 'vocab-notebook';
@@ -14,23 +13,40 @@ const WORLD_NAME = 'vocab-notebook';
 let mirror = null;   // [{ word, added_at, senses, source, srs }] 会话内镜像
 let writing = null;  // 防抖中的 Promise
 let dirty = false;
+let csrfToken = null; // 自己维护的 token，不依赖页面全局状态（兼容前端未初始化 token 的版本）
+
+async function getCsrfToken() {
+    if (csrfToken) return csrfToken;
+    const r = await fetch('/csrf-token');
+    if (!r.ok) throw new Error(`获取 CSRF token 失败: HTTP ${r.status}`);
+    csrfToken = (await r.json()).token;
+    return csrfToken;
+}
+
+function jsonHeaders(token) {
+    return { 'Content-Type': 'application/json', 'X-CSRF-Token': token };
+}
+
+/** 带一次性 CSRF 重试：403 时清 token 重新要一次再试（应对会话轮换） */
+async function postWithRetry(url, body) {
+    let token = await getCsrfToken();
+    let r = await fetch(url, { method: 'POST', headers: jsonHeaders(token), body: JSON.stringify(body) });
+    if (r.status === 403) {
+        csrfToken = null;
+        token = await getCsrfToken();
+        r = await fetch(url, { method: 'POST', headers: jsonHeaders(token), body: JSON.stringify(body) });
+    }
+    return r;
+}
 
 async function apiGet() {
-    const r = await fetch('/api/worldinfo/get', {
-        method: 'POST',
-        headers: getRequestHeaders(),
-        body: JSON.stringify({ name: WORLD_NAME }),
-    });
+    const r = await postWithRetry('/api/worldinfo/get', { name: WORLD_NAME });
     if (!r.ok) throw new Error(`读取生词本失败: HTTP ${r.status}`);
     return await r.json();
 }
 
 async function apiWrite(data) {
-    const r = await fetch('/api/worldinfo/edit', {
-        method: 'POST',
-        headers: getRequestHeaders(),
-        body: JSON.stringify({ name: WORLD_NAME, data }),
-    });
+    const r = await postWithRetry('/api/worldinfo/edit', { name: WORLD_NAME, data });
     if (!r.ok) throw new Error(`写入生词本失败: HTTP ${r.status}`);
 }
 
