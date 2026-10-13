@@ -20,7 +20,6 @@ ${plot}
 Analyze the selected text and return a JSON object with EXACTLY this shape:
 {
   "word": "<the headword, lowercase unless proper noun>",
-  "phonetic": "<IPA transcription, American pronunciation, e.g. /hed tuː/>",
   "context_translation": "<faithful Chinese translation of the FULL sentence it appeared in>",
   "senses": [
     {
@@ -41,8 +40,22 @@ Rules:
 - If the selection is a phrase/idiom, treat the whole phrase as the headword.
 - LEMMATIZE: if the selection is an inflected form, record the base dictionary form instead — "heading to" -> "head to", "went" -> "go", "bigger" -> "big". Keep phrasal-verb particles ("looked after" -> "look after"). Verb "be"/"have" forms map to "be"/"have".
 - Each sense's "example" must be a fresh sentence you write, in the same everyday register as the story; the story sentence itself is preserved elsewhere, do not copy it.
+- Each sense's "note" MUST call out usage traps and collocation restrictions whenever they exist (they usually do): e.g. "head home" drops the preposition (不加 to); transitive/intransitive limits; countability; register (口语/书面). If a sense genuinely has no trap, keep the note short instead of padding.
 - All meanings/notes in Chinese; examples kept in English.
 - Valid JSON only. No markdown fences, no commentary.`;
+
+/** 从免费词典 API 取音标（不经 AI；AI 音标来源不可靠已弃用）。失败返回空串。 */
+export async function fetchPhonetic(word) {
+    try {
+        const r = await fetch('/proxy/https://api.dictionaryapi.dev/api/v2/entries/en/' + encodeURIComponent(word));
+        if (!r.ok) return '';
+        const data = await r.json();
+        const ph = data?.[0]?.phonetics?.find(p => p.text)?.text || '';
+        return String(ph).trim();
+    } catch (e) {
+        return '';
+    }
+}
 }
 
 function extractJson(text) {
@@ -71,7 +84,7 @@ export async function lookup(selectedText, sentence, plot, sourceCard) {
 
     return {
         word: String(data.word),
-        phonetic: String(data.phonetic || ''),
+        phonetic: '', // 音标由词典 API 补（fetchPhonetic），不经 AI
         added_at: new Date().toISOString().slice(0, 10),
         context_translation: String(data.context_translation || ''),
         senses: data.senses.slice(0, 4).map(s => ({

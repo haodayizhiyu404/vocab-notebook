@@ -73,7 +73,9 @@ function stripMetaBlocks(text) {
     return String(text || '')
         .replace(META_BLOCK_RE, '')
         .replace(/<[^>]+>/g, '')
-        .replace(/\s+/g, ' ')
+        .replace(/🔊/g, '')
+        .replace(/[ \t]+/g, ' ')   // 只压行内空白
+        .replace(/\n{3,}/g, '\n\n') // 保留换行结构（供 prompt 阅读），仅收敛空行
         .trim();
 }
 
@@ -109,6 +111,8 @@ export async function captureSelection(payload, { clearSelection = false } = {})
             return false;
         }
         const record = await ai.lookup(payload.text, payload.sentence, payload.plot, payload.card);
+        // 音标走词典 API（不经 AI），查不到就留空不显示
+        record.phonetic = await ai.fetchPhonetic(record.word);
         const added = await storage.add(record);
         if (added) {
             toastr.success(`已收录「${record.word}」（${record.senses.length} 个义项）`, '生词本', { timeOut: 2500 });
