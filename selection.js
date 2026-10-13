@@ -64,18 +64,13 @@ function getSentenceContext(mesTextEl, selected) {
     return stripMetaBlocks(mesTextEl.textContent).slice(0, 500);
 }
 
-/** 思考/摘要类整块剥掉（标签+内容）。
- *  顺序至关重要：先摘出 <content> 正文，再在里面做剥离——
- *  正文先于任何剥离动作被取出，杜绝标签未闭合时误吞正文。 */
-const META_BLOCK_RE = /<(cot|thinking|think|summary|abstract)>[\s\S]*?<\/\1>/gi;
+/** 黑名单制剥离：六类元信息块（标签+内容）整块删除，其余一切视为正文。
+ *  标签各自独立成块、不相嵌套；块匹配长度限 20000 字符，某标签未闭合时
+ *  最多剥不掉该块（内容泄漏），绝不会反吞正文。 */
+const META_BLOCK_RE = /<(cot|thinking|think|summary|abstract|skit)>[\s\S]{0,20000}?<\/\1>/gi;
 
 function stripMetaBlocks(text) {
-    const raw = String(text || '');
-    // 1) 摘出 <content> 正文（若有 wrapper）；没有则全文进入下一步
-    const m = raw.match(/<content>([\s\S]*?)<\/content>/i);
-    let body = m ? m[1] : raw;
-    // 2) 仅在正文范围内剥元信息块与孤立标签
-    return body
+    return String(text || '')
         .replace(META_BLOCK_RE, '')
         .replace(/<[^>]+>/g, '')
         .replace(/\s+/g, ' ')
