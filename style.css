@@ -44,6 +44,8 @@
     align-items: center; justify-content: center; gap: 12px; box-sizing: border-box; }
 .vocab-card.back { cursor: default; text-align: left; }
 .vocab-word { font-size: 28px; font-weight: bold; color: #fff; }
+.vocab-phonetic { font-size: 14px; color: #8a93a5; font-family: 'Consolas', monospace; }
+.vocab-word.small + .vocab-phonetic { font-size: 13px; }
 .vocab-word.small { font-size: 18px; }
 .vocab-word-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
 .vocab-flip-hint { font-size: 12px; color: #999; }

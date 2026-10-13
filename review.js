@@ -45,6 +45,7 @@ function render(container) {
         container.innerHTML = `
             <div class="vocab-card front" id="vocab-card">
                 <div class="vocab-word">${esc(rec.word)}</div>
+                ${rec.phonetic ? `<div class="vocab-phonetic">${esc(rec.phonetic)}</div>` : ''}
                 <button class="vocab-speak-btn" id="vocab-speak" title="发音">🔊</button>
                 <div class="vocab-flip-hint">点击卡片翻面看解析</div>
             </div>
@@ -64,6 +65,7 @@ function render(container) {
             <div class="vocab-card back">
                 <div class="vocab-word-row">
                     <span class="vocab-word small">${esc(rec.word)}</span>
+                    ${rec.phonetic ? `<span class="vocab-phonetic">${esc(rec.phonetic)}</span>` : ''}
                     <button class="vocab-speak-btn" id="vocab-speak2" title="发音">🔊</button>
                 </div>
                 ${sorted.map(senseHtml).join('')}

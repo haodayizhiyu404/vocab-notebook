@@ -20,6 +20,7 @@ ${plot}
 Analyze the selected text and return a JSON object with EXACTLY this shape:
 {
   "word": "<the headword, lowercase unless proper noun>",
+  "phonetic": "<IPA transcription, American pronunciation, e.g. /hed tuː/>",
   "context_translation": "<faithful Chinese translation of the FULL sentence it appeared in>",
   "senses": [
     {
@@ -70,6 +71,7 @@ export async function lookup(selectedText, sentence, plot, sourceCard) {
 
     return {
         word: String(data.word),
+        phonetic: String(data.phonetic || ''),
         added_at: new Date().toISOString().slice(0, 10),
         context_translation: String(data.context_translation || ''),
         senses: data.senses.slice(0, 4).map(s => ({
