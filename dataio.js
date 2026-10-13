@@ -1,8 +1,9 @@
 /**
- * dataio.js · 弹窗内「数据」标签：导出下载 / 导入合并 / 重新从磁盘加载
+ * dataio.js · 弹窗内「数据」标签：导出下载 / 导入合并 / 重新从磁盘加载 / 补齐音标
  */
 
 import * as storage from './storage.js';
+import { fetchPhonetic } from './ai.js';
 
 export async function renderDataTab(container) {
     container.innerHTML = `
@@ -17,6 +18,7 @@ export async function renderDataTab(container) {
         <div class="vocab-data-row">
             <input type="file" id="vocab-import-file" accept=".json" style="display:none">
             <button id="vocab-import">导入 JSON（合并去重）</button>
+            <button id="vocab-backfill">补齐缺失音标</button>
         </div>
         <div id="vocab-data-msg" class="vocab-hint"></div>`;
 
@@ -38,6 +40,33 @@ export async function renderDataTab(container) {
         await storage.load(true);
         msg.textContent = `已从磁盘加载，共 ${storage.list().length} 条。`;
         document.dispatchEvent(new CustomEvent('vocab-changed'));
+    };
+
+    // 补齐缺失音标：逐词查词典 API（短语拆词拼接），查不到保持空白
+    container.querySelector('#vocab-backfill').onclick = async () => {
+        const btn = container.querySelector('#vocab-backfill');
+        btn.disabled = true;
+        try {
+            await storage.load();
+            const targets = storage.list().filter(r => !r.phonetic);
+            let done = 0, failed = 0;
+            for (const rec of targets) {
+                msg.textContent = `补齐音标中… ${done + failed + 1}/${targets.length}（${rec.word}）`;
+                const ph = await fetchPhonetic(rec.word);
+                if (ph) {
+                    await storage.update(rec.word, (r) => { r.phonetic = ph; });
+                    done++;
+                } else {
+                    failed++;
+                }
+                await new Promise(r => setTimeout(r, 150)); // 温和限速
+            }
+            msg.textContent = `音标补齐完成：成功 ${done}，查不到 ${failed}。`;
+        } catch (e) {
+            msg.textContent = '补齐失败：' + e.message;
+        } finally {
+            btn.disabled = false;
+        }
     };
 
     const fileInput = container.querySelector('#vocab-import-file');

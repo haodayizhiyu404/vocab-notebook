@@ -45,14 +45,28 @@ Rules:
 - Valid JSON only. No markdown fences, no commentary.`;
 }
 
-/** 从免费词典 API 取音标（不经 AI；AI 音标来源不可靠已弃用）。失败返回空串。 */
+/** 查单个词，返回词典原文音标文本（可能带斜杠） */
+async function fetchOne(word) {
+    const r = await fetch('/proxy/https://api.dictionaryapi.dev/api/v2/entries/en/' + encodeURIComponent(word));
+    if (!r.ok) return '';
+    const data = await r.json();
+    const ph = data?.[0]?.phonetics?.find(p => p.text)?.text || '';
+    return String(ph).trim();
+}
+
+/** 从免费词典 API 取音标（不经 AI）。短语拆词逐个查后拼接；失败返回空串。 */
 export async function fetchPhonetic(word) {
     try {
-        const r = await fetch('/proxy/https://api.dictionaryapi.dev/api/v2/entries/en/' + encodeURIComponent(word));
-        if (!r.ok) return '';
-        const data = await r.json();
-        const ph = data?.[0]?.phonetics?.find(p => p.text)?.text || '';
-        return String(ph).trim();
+        const w = String(word || '').trim();
+        if (!w) return '';
+        if (!w.includes(' ')) return await fetchOne(w);
+        const parts = [];
+        for (const p of w.split(/\s+/)) {
+            const t = await fetchOne(p);
+            if (!t) return ''; // 任一词查不到就不瞎拼
+            parts.push(t.replace(/^\//, '').replace(/\/$/, ''));
+        }
+        return '/' + parts.join(' ') + '/';
     } catch (e) {
         return '';
     }
