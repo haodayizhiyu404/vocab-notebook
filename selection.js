@@ -64,12 +64,35 @@ function getSentenceContext(mesTextEl, selected) {
     return mesTextEl.textContent.replace(/\s+/g, ' ').trim();
 }
 
-/** 最近剧情摘要：最后 6 条 AI 消息，各截 200 字 */
+/** 思考/摘要类整块剥掉（标签+内容），其余孤立标签只剥标签本身 */
+const TAG_BLOCK_RE = /<(cot|thinking|think|summary|abstract)>[\s\S]*?<\/\1>/gi;
+
+function stripMetaBlocks(text) {
+    return String(text || '')
+        .replace(TAG_BLOCK_RE, '')
+        .replace(/<[^>]+>/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+/**
+ * 最近剧情摘要：总预算 2000 字，从最新往旧取，每条上限 600 字，至少保留 3 条。
+ * 思考链/摘要标签整块剔除，避免污染解析。
+ */
 function getPlotSummary() {
     const chat = getContext().chat || [];
-    return chat.filter(m => !m.is_user && !m.is_system).slice(-6)
-        .map(m => String(m.mes || '').replace(/<[^>]+>/g, '').slice(0, 200))
-        .join('\n---\n');
+    const msgs = chat.filter(m => !m.is_user && !m.is_system);
+    const PLOT_BUDGET = 2000;
+    const PER_MESSAGE_MAX = 600;
+    const picked = [];
+    let total = 0;
+    for (let i = msgs.length - 1; i >= 0 && i >= msgs.length - 12; i--) {
+        const t = stripMetaBlocks(msgs[i].mes).slice(0, PER_MESSAGE_MAX);
+        if (total + t.length > PLOT_BUDGET && picked.length >= 3) break;
+        picked.unshift(t);
+        total += t.length;
+    }
+    return picked.join('\n---\n');
 }
 
 function currentCardName() {
