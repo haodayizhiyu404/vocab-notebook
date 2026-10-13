@@ -7,9 +7,6 @@ import * as srs from './srs.js';
 import { renderReviewTab } from './review.js';
 import { renderWordsTab } from './words.js';
 import { renderDataTab } from './dataio.js';
-import { getChatSelection, captureSelection } from './selection.js';
-
-const isTouch = navigator.maxTouchPoints > 0;
 
 let modal = null;
 let activeTab = 'review';
@@ -108,36 +105,8 @@ export function closeModal() {
 }
 
 export function initMenu() {
+    // 生词本主入口（收录走选区旁浮动按钮：打开菜单会使选区塌缩，菜单收录不可用）
     const host = document.querySelector('#options .options-content');
-    // 触屏端专用：魔法棒菜单"收录生词"（避免与原生选区面板抢位置），排在生词本上方
-    if (host && !document.getElementById('option_vocab_capture')) {
-        const capture = document.createElement('a');
-        capture.id = 'option_vocab_capture';
-        capture.innerHTML = '<i class="fa-lg fa-solid fa-square-plus"></i><span>收录生词</span>';
-        if (!isTouch) capture.style.display = 'none'; // 桌面端走浮动按钮
-        host.appendChild(capture);
-
-        capture.addEventListener('click', async (e) => {
-            e.preventDefault();
-            const payload = getChatSelection();
-            if (!payload) {
-                toastr.warning('请先在聊天中选中要收录的词句', '生词本', { timeOut: 2000 });
-                return;
-            }
-            document.getElementById('options')?.style.setProperty('display', 'none');
-            await captureSelection(payload, { clearSelection: false }); // 保留选区，方便继续用原生翻译
-        });
-    }
-    // 收录项可用性同步：选区变化 + 菜单打开时
-    function syncCaptureItem() {
-        const el = document.getElementById('option_vocab_capture');
-        if (!el) return;
-        el.style.opacity = getChatSelection() ? '' : '0.4';
-    }
-    document.addEventListener('selectionchange', syncCaptureItem);
-    document.getElementById('options_button')?.addEventListener('click', () => setTimeout(syncCaptureItem, 50));
-
-    // 生词本主入口
     if (host && !document.getElementById('option_vocab_notebook')) {
         const item = document.createElement('a');
         item.id = 'option_vocab_notebook';

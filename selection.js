@@ -1,7 +1,8 @@
 /**
  * selection.js · 聊天内选词收录
  * - 桌面端：选中文字 → 选区上方浮出"＋ 生词"按钮
- * - 触屏端：不弹浮动按钮（避免与原生选区面板冲突），走魔法棒菜单"收录生词"
+ * - 触屏端：选区下方浮出（原生选区面板在上方，两者共存；可先翻译再收录）
+ * 判别用 pointer: coarse —— maxTouchPoints 会把带触控板的笔记本误判成触屏
  */
 
 import { getContext } from '../../../extensions.js';
@@ -9,9 +10,12 @@ import * as storage from './storage.js';
 import * as ai from './ai.js';
 import { getConfig } from './config.js';
 
-const isTouch = navigator.maxTouchPoints > 0;
+const isCoarse = window.matchMedia
+    ? window.matchMedia('(pointer: coarse)').matches
+    : navigator.maxTouchPoints > 0;
 let floatBtn = null;
 let busy = false;
+let selTimer = null;
 
 function ensureBtn() {
     if (floatBtn) return floatBtn;
@@ -106,7 +110,10 @@ function showBtn(rect, payload) {
     const btn = ensureBtn();
     btn.dataset.payload = JSON.stringify(payload);
     btn.style.display = 'block';
-    const top = Math.max(8, rect.top - 34);
+    // 桌面端：选区上方；触屏端：选区下方（避开顶部原生选区面板，两者共存）
+    const top = isCoarse
+        ? Math.min(window.innerHeight - 44, rect.bottom + 10)
+        : Math.max(8, rect.top - 34);
     const left = Math.min(Math.max(8, rect.left), window.innerWidth - 90);
     btn.style.top = top + 'px';
     btn.style.left = left + 'px';
@@ -119,23 +126,43 @@ export function initSelection() {
         captureSelection(payload, { clearSelection: true }).then((ok) => { if (ok) hideBtn(); });
     };
 
-    document.addEventListener('mouseup', (e) => {
-        if (e.target === btn || btn.contains(e.target)) return;
-        if (isTouch) return; // 触屏走魔法棒菜单，不弹浮动按钮
-        setTimeout(() => {
-            if (!getConfig().captureEnabled) { hideBtn(); return; }
-            const sel = window.getSelection();
-            if (!sel || sel.isCollapsed || !sel.toString().trim()) { hideBtn(); return; }
-            const rect = sel.getRangeAt(0).getBoundingClientRect();
-            const payload = getChatSelection();
-            if (!payload) { hideBtn(); return; }
-            showBtn(rect, payload);
-        }, 10);
-    });
-
-    document.addEventListener('mousedown', (e) => {
-        if (floatBtn && e.target !== floatBtn && !floatBtn.contains(e.target)) hideBtn();
-    });
+    if (!isCoarse) {
+        // 桌面端：mouseup 时弹按钮
+        document.addEventListener('mouseup', (e) => {
+            if (e.target === btn || btn.contains(e.target)) return;
+            setTimeout(() => {
+                if (!getConfig().captureEnabled) { hideBtn(); return; }
+                const sel = window.getSelection();
+                if (!sel || sel.isCollapsed || !sel.toString().trim()) { hideBtn(); return; }
+                const rect = sel.getRangeAt(0).getBoundingClientRect();
+                const payload = getChatSelection();
+                if (!payload) { hideBtn(); return; }
+                showBtn(rect, payload);
+            }, 10);
+        });
+        document.addEventListener('mousedown', (e) => {
+            if (floatBtn && e.target !== floatBtn && !floatBtn.contains(e.target)) hideBtn();
+        });
+    } else {
+        // 触屏端：选区稳定后弹按钮在选区下方；选区塌缩即隐藏
+        document.addEventListener('selectionchange', () => {
+            clearTimeout(selTimer);
+            selTimer = setTimeout(() => {
+                if (!getConfig().captureEnabled) { hideBtn(); return; }
+                const sel = window.getSelection();
+                if (!sel || sel.isCollapsed || !sel.toString().trim()) { hideBtn(); return; }
+                const payload = getChatSelection();
+                if (!payload) { hideBtn(); return; }
+                const rect = sel.getRangeAt(0).getBoundingClientRect();
+                if (rect.width === 0 && rect.height === 0) { hideBtn(); return; }
+                showBtn(rect, payload);
+            }, 350); // 等拖完选区手柄稳定
+        });
+        // 点到页面别处时隐藏
+        document.addEventListener('touchstart', (e) => {
+            if (floatBtn && e.target !== floatBtn && !floatBtn.contains(e.target)) hideBtn();
+        }, { passive: true });
+    }
 
     document.addEventListener('scroll', hideBtn, true);
 }
