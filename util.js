@@ -34,13 +34,19 @@ export function speak(text) {
     window.speechSynthesis.speak(u);
 }
 
-/** 清理出处原句：剥掉【人名】：前缀、TTS 装饰按钮字符、压行、截断时尽量不切断（…）翻译 */
+/** 清理出处原句：剥掉【人名】：前缀、TTS 装饰按钮字符、行尾内嵌的（翻译），压行 */
 export function cleanSourceLine(line) {
     let t = String(line || '')
         .replace(/^\s*【[^】]*】\s*[:：]\s*/, '')
         .replace(/🔊/g, '')
         .replace(/\s+/g, ' ')
         .trim();
+    // 行尾的全角括号翻译剥掉：译文统一由第三行（AI 的 context_translation）呈现，避免重复
+    let prev;
+    do {
+        prev = t;
+        t = t.replace(/（[^（）]*）\s*$/u, '').trim();
+    } while (t !== prev);
     if (t.length > 150) {
         const cut = t.slice(0, 150);
         const parenStart = cut.lastIndexOf('（');
