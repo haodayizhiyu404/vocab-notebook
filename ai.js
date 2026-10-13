@@ -43,6 +43,7 @@ Rules:
 - Each sense's "note" MUST call out usage traps and collocation restrictions whenever they exist (they usually do): e.g. "head home" drops the preposition (不加 to); transitive/intransitive limits; countability; register (口语/书面). If a sense genuinely has no trap, keep the note short instead of padding.
 - All meanings/notes in Chinese; examples kept in English.
 - Valid JSON only. No markdown fences, no commentary.`;
+}
 
 /** 从免费词典 API 取音标（不经 AI；AI 音标来源不可靠已弃用）。失败返回空串。 */
 export async function fetchPhonetic(word) {
@@ -55,7 +56,6 @@ export async function fetchPhonetic(word) {
     } catch (e) {
         return '';
     }
-}
 }
 
 function extractJson(text) {
