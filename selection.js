@@ -48,51 +48,48 @@ export function getChatSelection() {
     return {
         text: text,
         sentence: getSentenceContext(mesText, text),
-        plot: getPlotSummary(),
+        plot: getCurrentMessageText(mesText), // 选区所在楼的完整正文（已剥元信息块）
         card: currentCardName(),
     };
 }
 
-/** 取出处整句：从选区所在块级元素取文本 */
+/** 取出处整句：从选区所在块级元素取文本（剥元信息块，防渲染出的思考区混入） */
 function getSentenceContext(mesTextEl, selected) {
     const blocks = mesTextEl.querySelectorAll('p, li, div, blockquote, h1, h2, h3, h4, h5, h6');
     for (const b of blocks) {
         if (b.textContent.includes(selected)) {
-            return b.textContent.replace(/\s+/g, ' ').trim();
+            return stripMetaBlocks(b.textContent).slice(0, 500);
         }
     }
-    return mesTextEl.textContent.replace(/\s+/g, ' ').trim();
+    return stripMetaBlocks(mesTextEl.textContent).slice(0, 500);
 }
 
-/** 思考/摘要类整块剥掉（标签+内容），其余孤立标签只剥标签本身 */
-const TAG_BLOCK_RE = /<(cot|thinking|think|summary|abstract)>[\s\S]*?<\/\1>/gi;
+/** 思考/摘要类整块剥掉（标签+内容）。
+ *  顺序至关重要：先摘出 <content> 正文，再在里面做剥离——
+ *  正文先于任何剥离动作被取出，杜绝标签未闭合时误吞正文。 */
+const META_BLOCK_RE = /<(cot|thinking|think|summary|abstract)>[\s\S]*?<\/\1>/gi;
 
 function stripMetaBlocks(text) {
-    return String(text || '')
-        .replace(TAG_BLOCK_RE, '')
+    const raw = String(text || '');
+    // 1) 摘出 <content> 正文（若有 wrapper）；没有则全文进入下一步
+    const m = raw.match(/<content>([\s\S]*?)<\/content>/i);
+    let body = m ? m[1] : raw;
+    // 2) 仅在正文范围内剥元信息块与孤立标签
+    return body
+        .replace(META_BLOCK_RE, '')
         .replace(/<[^>]+>/g, '')
         .replace(/\s+/g, ' ')
         .trim();
 }
 
-/**
- * 最近剧情摘要：总预算 2000 字，从最新往旧取，每条上限 600 字，至少保留 3 条。
- * 思考链/摘要标签整块剔除，避免污染解析。
- */
-function getPlotSummary() {
+/** 取选区所在那一楼（消息）的完整正文作为剧情语境，上限 2000 字 */
+function getCurrentMessageText(mesTextEl) {
+    const mesEl = mesTextEl.closest('.mes');
+    const idx = Number(mesEl?.getAttribute('mesid'));
     const chat = getContext().chat || [];
-    const msgs = chat.filter(m => !m.is_user && !m.is_system);
-    const PLOT_BUDGET = 2000;
-    const PER_MESSAGE_MAX = 600;
-    const picked = [];
-    let total = 0;
-    for (let i = msgs.length - 1; i >= 0 && i >= msgs.length - 12; i--) {
-        const t = stripMetaBlocks(msgs[i].mes).slice(0, PER_MESSAGE_MAX);
-        if (total + t.length > PLOT_BUDGET && picked.length >= 3) break;
-        picked.unshift(t);
-        total += t.length;
-    }
-    return picked.join('\n---\n');
+    const mes = Number.isInteger(idx) ? chat[idx] : null;
+    if (!mes || typeof mes.mes !== 'string') return '';
+    return stripMetaBlocks(mes.mes).slice(0, 2000);
 }
 
 function currentCardName() {
