@@ -59,9 +59,12 @@
     border-top: 1px solid rgba(255,255,255,.09); }
 .vocab-note { font-size: 12px; color: #ffd97a; margin-top: 8px; padding-top: 6px;
     border-top: 1px solid rgba(255,255,255,.09); }
-.vocab-source { font-size: 11px; color: #8a93a5; margin-top: 10px; padding-top: 6px;
+/* 出处块（三行式：卡片 / 原文 / 原文翻译） */
+.vocab-src { margin-top: 10px; padding-top: 6px;
     border-top: 1px solid rgba(255,255,255,.09); }
-.vocab-source-cn { font-size: 12px; color: #b8c4d4; margin-top: 3px; }
+.vocab-src-meta { font-size: 11px; color: #8a93a5; }
+.vocab-src-line { font-size: 12px; color: #cfd8e3; font-style: italic; margin-top: 3px; }
+.vocab-src-cn { font-size: 12px; color: #b8c4d4; margin-top: 2px; }
 .vocab-example-row { display: flex; align-items: flex-start; gap: 6px; margin: 4px 0; }
 .vocab-example-row .vocab-example { margin: 0; }
 .vocab-mini-speak { width: 22px; height: 22px; padding: 0; flex: 0 0 22px;

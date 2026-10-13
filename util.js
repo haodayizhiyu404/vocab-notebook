@@ -34,10 +34,11 @@ export function speak(text) {
     window.speechSynthesis.speak(u);
 }
 
-/** 清理出处原句：剥掉【人名】：前缀、压行、截断时尽量不切断（…）翻译 */
+/** 清理出处原句：剥掉【人名】：前缀、TTS 装饰按钮字符、压行、截断时尽量不切断（…）翻译 */
 export function cleanSourceLine(line) {
     let t = String(line || '')
         .replace(/^\s*【[^】]*】\s*[:：]\s*/, '')
+        .replace(/🔊/g, '')
         .replace(/\s+/g, ' ')
         .trim();
     if (t.length > 150) {
@@ -52,4 +53,17 @@ export function cleanSourceLine(line) {
         }
     }
     return t;
+}
+
+/** 出处块三行式：卡片名 / 原文 / 原文翻译 */
+export function sourceBlockHtml(rec) {
+    const line = cleanSourceLine(rec?.source?.line || '');
+    const trans = rec?.context_translation
+        || (rec?.senses || []).find(s => s.in_context)?.example_translation
+        || '';
+    return `<div class="vocab-src">
+        <div class="vocab-src-meta">📖 ${esc(rec?.source?.card || '未知')}</div>
+        ${line ? `<div class="vocab-src-line">${esc(line)}</div>` : ''}
+        ${trans ? `<div class="vocab-src-cn">${esc(trans)}</div>` : ''}
+    </div>`;
 }

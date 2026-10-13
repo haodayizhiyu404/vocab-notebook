@@ -123,7 +123,15 @@ export function initSelection() {
     const btn = ensureBtn();
     btn.onclick = () => {
         const payload = JSON.parse(floatBtn.dataset.payload || '{}');
-        captureSelection(payload, { clearSelection: true }).then((ok) => { if (ok) hideBtn(); });
+        if (!payload.text || busy) return;
+        // 点击反馈：解析中状态（收录失败/成功都由 captureSelection 弹 toast）
+        btn.textContent = '解析中…';
+        btn.style.opacity = '.7';
+        captureSelection(payload, { clearSelection: true }).then((ok) => {
+            btn.textContent = '＋ 生词';
+            btn.style.opacity = '';
+            if (ok) hideBtn();
+        });
     };
 
     if (!isCoarse) {

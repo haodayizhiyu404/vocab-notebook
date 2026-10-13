@@ -3,7 +3,7 @@
  */
 
 import * as storage from './storage.js';
-import { esc, speak, cleanSourceLine } from './util.js';
+import { esc, speak, sourceBlockHtml } from './util.js';
 
 function detailHtml(rec) {
     return rec.senses.map(s => `
@@ -60,9 +60,7 @@ export async function renderWordsTab(container) {
                         <button class="vocab-item-del" title="删除">🗑</button>
                     </div>
                     <div class="vocab-item-detail" style="display:none">${detailHtml(r)}
-                        <div class="vocab-source">出处：${esc(r.source?.card || '未知')} ｜ ${esc(cleanSourceLine(r.source?.line || ''))}</div>
-                        ${(r.context_translation || (r.senses || []).find(s => s.in_context)?.example_translation)
-                            ? `<div class="vocab-source-cn">${esc(r.context_translation || (r.senses || []).find(s => s.in_context)?.example_translation)}</div>` : ''}
+                        ${sourceBlockHtml(r)}
                     </div>
                 </div>`).join('');
 

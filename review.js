@@ -4,7 +4,7 @@
 
 import * as storage from './storage.js';
 import * as srs from './srs.js';
-import { esc, speak, cleanSourceLine } from './util.js';
+import { esc, speak, sourceBlockHtml } from './util.js';
 
 const QUALITY = { again: 0, hard: 3, good: 5 };
 let deck = [];        // 今日到期队列
@@ -33,15 +33,7 @@ function bindMiniSpeaks(container) {
     });
 }
 
-/** 出处块：原句（代码抓的 ground truth）+ AI 整句翻译（旧词条回退用义项例句译文） */
-function sourceBlock(rec) {
-    const line = cleanSourceLine(rec.source?.line || '');
-    const trans = rec.context_translation
-        || (rec.senses || []).find(s => s.in_context)?.example_translation
-        || '';
-    return `<div class="vocab-source">出处：${esc(rec.source?.card || '未知')} ｜ ${esc(line)}</div>
-        ${trans ? `<div class="vocab-source-cn">${esc(trans)}</div>` : ''}`;
-}
+/** 出处块由 util.sourceBlockHtml 统一生成（三行式：卡片/原文/原文翻译） */
 
 function render(container) {
     if (deck.length === 0) {
@@ -75,7 +67,7 @@ function render(container) {
                     <button class="vocab-speak-btn" id="vocab-speak2" title="发音">🔊</button>
                 </div>
                 ${sorted.map(senseHtml).join('')}
-                ${sourceBlock(rec)}
+                ${sourceBlockHtml(rec)}
             </div>
             <div class="vocab-grade-row">
                 <button data-q="${QUALITY.again}" class="vocab-grade again">不会</button>
