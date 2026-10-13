@@ -26,7 +26,7 @@ Analyze the selected text and return a JSON object with EXACTLY this shape:
       "pos": "<part of speech, e.g. v./n./phr.>",
       "meaning": "<concise Chinese meaning>",
       "in_context": <true for the sense used in THIS story context>,
-      "example": "<the sentence above, trimmed>",
+      "example": "<a NEW example sentence YOU compose, showing this sense in common everyday use. Do NOT reuse the story sentence above; make a fresh one>",
       "example_translation": "<faithful Chinese translation of the example sentence>",
       "collocations": ["<common collocations, 0-3>"],
       "note": "<usage/memory tip in Chinese, or empty>"
@@ -39,6 +39,7 @@ Rules:
 - If other common senses exist (e.g. "row" = 划船 vs 一排), include them with in_context=false.
 - If the selection is a phrase/idiom, treat the whole phrase as the headword.
 - LEMMATIZE: if the selection is an inflected form, record the base dictionary form instead — "heading to" -> "head to", "went" -> "go", "bigger" -> "big". Keep phrasal-verb particles ("looked after" -> "look after"). Verb "be"/"have" forms map to "be"/"have".
+- Each sense's "example" must be a fresh sentence you write, in the same everyday register as the story; the story sentence itself is preserved elsewhere, do not copy it.
 - All meanings/notes in Chinese; examples kept in English.
 - Valid JSON only. No markdown fences, no commentary.`;
 }
