@@ -8,7 +8,7 @@
  */
 
 import { newSrs } from './srs.js';
-import { idbDelete } from './fish-tts.js';
+import { deleteAudioFile } from './fish-tts.js';
 
 const FILE_NAME = 'vocab-notebook.json';
 const OLD_WORLD_NAME = 'vocab-notebook';
@@ -132,15 +132,6 @@ export async function flush() {
     return writing;
 }
 
-/** 词条关联的音频键：单词本身 + 各义项例句（删词条时联动清理） */
-function audioKeysOf(rec) {
-    const keys = ['v|' + rec.word];
-    for (const s of rec.senses || []) {
-        if (s.example) keys.push('v|' + s.example);
-    }
-    return keys;
-}
-
 /** 立即写（页面隐藏/切页面前兜底） */
 export async function flushNow() {
     clearTimeout(scheduleWrite._t);
@@ -185,8 +176,12 @@ export async function remove(word) {
     await load();
     const i = mirror.findIndex(r => r.word === word);
     if (i < 0) return false;
-    // 联动删除该词条的本地音频（单词 + 例句），不留孤儿
-    for (const k of audioKeysOf(mirror[i])) idbDelete(k);
+    // 联动删除该词条的音频文件（单词 + 例句），不留孤儿
+    const rec = mirror[i];
+    deleteAudioFile(rec.word);
+    for (const s of rec.senses || []) {
+        if (s.example) deleteAudioFile(s.example);
+    }
     mirror.splice(i, 1);
     scheduleWrite();
     return true;
