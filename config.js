@@ -6,7 +6,10 @@ import { extension_settings } from '../../../extensions.js';
 import { saveSettingsDebounced } from '../../../../script.js';
 
 const KEY = 'vocab-notebook';
-const DEFAULTS = { captureEnabled: true }; // 选词收录总开关
+const DEFAULTS = {
+    captureEnabled: true, // 选词收录总开关
+    ttsVoiceId: '',       // Fish 发音音色（广场复制；空 = 回退浏览器发音）
+};
 
 export function getConfig() {
     extension_settings[KEY] = Object.assign({}, DEFAULTS, extension_settings[KEY]);

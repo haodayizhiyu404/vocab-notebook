@@ -4,6 +4,7 @@
 
 import * as storage from './storage.js';
 import { fetchPhonetic } from './ai.js';
+import { getConfig, saveConfig } from './config.js';
 
 export async function renderDataTab(container) {
     container.innerHTML = `
@@ -20,9 +21,22 @@ export async function renderDataTab(container) {
             <button id="vocab-import">导入 JSON（合并去重）</button>
             <button id="vocab-backfill">补齐缺失音标</button>
         </div>
+        <label class="vocab-field" style="margin-top:10px">Fish 发音音色 ID
+            <input type="text" id="vocab-tts-voice" placeholder="Fish 广场复制；留空则用浏览器发音" value="">
+        </label>
+        <div class="vocab-hint">填入后，复习/词表里的 🔊 改用 Fish 朗读（复用 Multi-Char TTS 的 key），音频本地缓存；不填则回退浏览器发音。</div>
         <div id="vocab-data-msg" class="vocab-hint"></div>`;
 
     const msg = container.querySelector('#vocab-data-msg');
+
+    // Fish 发音音色（失焦即存）
+    const voiceInput = container.querySelector('#vocab-tts-voice');
+    voiceInput.value = getConfig().ttsVoiceId || '';
+    voiceInput.addEventListener('change', () => {
+        getConfig().ttsVoiceId = voiceInput.value.trim();
+        saveConfig();
+        msg.textContent = getConfig().ttsVoiceId ? 'Fish 发音已启用。' : '已回退浏览器发音。';
+    });
 
     container.querySelector('#vocab-export').onclick = async () => {
         const text = await storage.exportJson();

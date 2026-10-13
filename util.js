@@ -1,6 +1,8 @@
 /**
- * util.js · 公共小工具：HTML 转义 + 浏览器原生发音
+ * util.js · 公共小工具：HTML 转义 + 发音（优先 Fish，回退浏览器原生）
  */
+
+import { fishSpeak } from './fish-tts.js';
 
 export function esc(s) {
     return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
@@ -23,8 +25,7 @@ if (window.speechSynthesis) {
     window.speechSynthesis.onvoiceschanged = () => { enVoice = null; pickVoice(); };
 }
 
-/** 浏览器原生 TTS 读单词（用户手势内调用，无请求无依赖） */
-export function speak(text) {
+function browserSpeak(text) {
     if (!window.speechSynthesis || !text) return;
     window.speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text);
@@ -32,6 +33,13 @@ export function speak(text) {
     if (v) u.voice = v;
     u.rate = 0.9;
     window.speechSynthesis.speak(u);
+}
+
+/** 发音：有 Fish 配置走 Fish（音频落 IndexedDB），否则浏览器原生 */
+export async function speak(text) {
+    if (!text) return;
+    const ok = await fishSpeak(text);
+    if (!ok) browserSpeak(text);
 }
 
 /** 清理出处原句：剥掉【人名】：前缀、TTS 装饰按钮字符、行尾内嵌的（翻译），压行 */
