@@ -7,6 +7,16 @@
  */
 
 import { newSrs } from './srs.js';
+import { idbDelete } from './fish-tts.js';
+
+/** 词条关联的音频键：单词本身 + 各义项例句 */
+function audioKeysOf(rec) {
+    const keys = ['v|' + rec.word];
+    for (const s of rec.senses || []) {
+        if (s.example) keys.push('v|' + s.example);
+    }
+    return keys;
+}
 
 const WORLD_NAME = 'vocab-notebook';
 
@@ -176,6 +186,8 @@ export async function remove(word) {
     await load();
     const i = mirror.findIndex(r => r.word === word);
     if (i < 0) return false;
+    // 联动删除该词条的本地音频（单词 + 例句），不留孤儿
+    for (const k of audioKeysOf(mirror[i])) idbDelete(k);
     mirror.splice(i, 1);
     scheduleWrite();
     return true;

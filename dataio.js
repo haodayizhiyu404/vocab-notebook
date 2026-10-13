@@ -5,6 +5,7 @@
 import * as storage from './storage.js';
 import { fetchPhonetic } from './ai.js';
 import { getConfig, saveConfig } from './config.js';
+import { idbListKeys, idbDelete } from './fish-tts.js';
 
 export async function renderDataTab(container) {
     container.innerHTML = `
@@ -20,6 +21,7 @@ export async function renderDataTab(container) {
             <input type="file" id="vocab-import-file" accept=".json" style="display:none">
             <button id="vocab-import">导入 JSON（合并去重）</button>
             <button id="vocab-backfill">补齐缺失音标</button>
+            <button id="vocab-gc-audio">清理孤儿音频</button>
         </div>
         <label class="vocab-field" style="margin-top:10px">Fish 发音音色 ID
             <input type="text" id="vocab-tts-voice" placeholder="Fish 广场复制；留空则用浏览器发音" value="">
@@ -37,6 +39,27 @@ export async function renderDataTab(container) {
         saveConfig();
         msg.textContent = getConfig().ttsVoiceId ? 'Fish 发音已启用。' : '已回退浏览器发音。';
     });
+
+    // 孤儿音频清扫：缓存键不属于任何现存词条（单词/例句）的即删除
+    container.querySelector('#vocab-gc-audio').onclick = async () => {
+        await storage.load();
+        const live = new Set();
+        for (const rec of storage.list()) {
+            live.add('v|' + rec.word);
+            for (const s of rec.senses || []) {
+                if (s.example) live.add('v|' + s.example);
+            }
+        }
+        const keys = await idbListKeys();
+        let removed = 0;
+        for (const k of keys) {
+            if (typeof k === 'string' && k.startsWith('v|') && !live.has(k)) {
+                await idbDelete(k);
+                removed++;
+            }
+        }
+        msg.textContent = `音频清理完成：删除 ${removed} 条孤儿缓存，保留 ${keys.length - removed} 条。`;
+    };
 
     container.querySelector('#vocab-export').onclick = async () => {
         const text = await storage.exportJson();

@@ -51,6 +51,31 @@ async function idbPut(key, blob) {
     } catch (e) { /* 缓存失败不影响播放 */ }
 }
 
+/** 删除指定键（删词条时联动清理用） */
+export async function idbDelete(key) {
+    try {
+        const db = await idbOpen();
+        await new Promise((resolve, reject) => {
+            const tx = db.transaction(IDB_STORE, 'readwrite');
+            tx.objectStore(IDB_STORE).delete(key);
+            tx.oncomplete = resolve;
+            tx.onerror = () => reject(tx.error);
+        });
+    } catch (e) { /* 忽略 */ }
+}
+
+/** 列出所有缓存键（孤儿清扫用） */
+export async function idbListKeys() {
+    try {
+        const db = await idbOpen();
+        return await new Promise((resolve, reject) => {
+            const rq = db.transaction(IDB_STORE, 'readonly').objectStore(IDB_STORE).getAllKeys();
+            rq.onsuccess = () => resolve(rq.result || []);
+            rq.onerror = () => reject(rq.error);
+        });
+    } catch (e) { return []; }
+}
+
 // ---------- 播放 ----------
 let currentAudio = null;
 function stopCurrent() {
