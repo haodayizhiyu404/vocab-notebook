@@ -102,6 +102,12 @@ export async function captureSelection(payload, { clearSelection = false } = {})
     if (!payload || busy) return false;
     busy = true;
     try {
+        // 前置拦截：选中词与已有词精确一致时直接提示，不消耗 AI 调用
+        if (await storage.has(payload.text)) {
+            toastr.info(`「${payload.text}」已在生词本中`, '生词本', { timeOut: 2000 });
+            if (clearSelection) window.getSelection()?.removeAllRanges();
+            return false;
+        }
         const record = await ai.lookup(payload.text, payload.sentence, payload.plot, payload.card);
         const added = await storage.add(record);
         if (added) {

@@ -138,6 +138,13 @@ export async function flushNow() {
     return flush();
 }
 
+/** 精确匹配：是否已收录该词（大小写不敏感）。供解析前的零成本拦截 */
+export async function has(word) {
+    await load();
+    const key = String(word || '').trim().toLowerCase();
+    return mirror.some(r => r.word.trim().toLowerCase() === key);
+}
+
 /** 加词：已存在则返回 false（不覆盖旧记录，保留学习历史） */
 export async function add(record) {
     await load();
