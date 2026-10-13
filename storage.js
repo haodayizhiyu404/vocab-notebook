@@ -138,18 +138,23 @@ export async function flushNow() {
     return flush();
 }
 
-/** 精确匹配：是否已收录该词（大小写不敏感）。供解析前的零成本拦截 */
+/** 规范化词目键：首尾空白、词间多空格压成单空格、忽略大小写 */
+function normKey(word) {
+    return String(word || '').trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
+/** 精确匹配：是否已收录该词（含短语）。供解析前的零成本拦截 */
 export async function has(word) {
     await load();
-    const key = String(word || '').trim().toLowerCase();
-    return mirror.some(r => r.word.trim().toLowerCase() === key);
+    const key = normKey(word);
+    return mirror.some(r => normKey(r.word) === key);
 }
 
 /** 加词：已存在则返回 false（不覆盖旧记录，保留学习历史） */
 export async function add(record) {
     await load();
-    const key = record.word.trim().toLowerCase();
-    if (mirror.some(r => r.word.trim().toLowerCase() === key)) return false;
+    const key = normKey(record.word);
+    if (mirror.some(r => normKey(r.word) === key)) return false;
     mirror._maxUid = (mirror._maxUid || 0) + 1;
     record._uid = mirror._maxUid;
     record.srs = record.srs || newSrs();
@@ -194,8 +199,8 @@ export async function importJson(text) {
     let added = 0;
     for (const rec of arr) {
         if (!rec || typeof rec.word !== 'string') continue;
-        const key = rec.word.trim().toLowerCase();
-        if (mirror.some(r => r.word.trim().toLowerCase() === key)) continue;
+        const key = normKey(rec.word);
+        if (mirror.some(r => normKey(r.word) === key)) continue;
         mirror._maxUid = (mirror._maxUid || 0) + 1;
         rec._uid = mirror._maxUid;
         rec.srs = rec.srs || newSrs();
