@@ -26,7 +26,7 @@ function injectSettingsDrawer() {
                 <input type="checkbox" id="vocab-capture-toggle" ${getConfig().captureEnabled ? 'checked' : ''}>
                 启用选词收录（聊天中选词显示「＋ 生词」按钮）
             </label>
-            <div class="vocab-hint">生词本界面：左下角菜单 → 生词本。词库文件：data/default-user/worlds/vocab-notebook.json</div>
+            <div class="vocab-hint">生词本界面：左下角菜单 → 生词本。词库文件：data/default-user/files/vocab-notebook.json</div>
         </div>`;
     container.appendChild(wrap);
     wrap.querySelector('#vocab-capture-toggle').addEventListener('change', (e) => {

@@ -1,29 +1,22 @@
 /**
  * storage.js · 生词本文件存储
- * 落点：data/default-user/worlds/vocab-notebook.json（世界书文件，肉眼可见、可手动备份）
- * 读写走酒馆官方 /api/worldinfo/{get,edit}（整文件原子写 + 防抖）
- *
- * 世界书条目结构：key=[单词], comment=完整记录的 JSON 字符串, content=空（不注入提示词）
+ * 落点：data/default-user/files/vocab-notebook.json —— 格式自由的独立本地文件
+ *   读：GET  /user/files/vocab-notebook.json（酒馆静态文件服务）
+ *   写：POST /api/files/upload（base64 整写，防抖）
+ * 文件内容就是词条数组本身，无任何包装结构。
+ * 旧版曾寄存在世界书文件（vocab-notebook world），首次读取时自动迁移并删除旧文件。
  */
 
 import { newSrs } from './srs.js';
 import { idbDelete } from './fish-tts.js';
 
-/** 词条关联的音频键：单词本身 + 各义项例句 */
-function audioKeysOf(rec) {
-    const keys = ['v|' + rec.word];
-    for (const s of rec.senses || []) {
-        if (s.example) keys.push('v|' + s.example);
-    }
-    return keys;
-}
+const FILE_NAME = 'vocab-notebook.json';
+const OLD_WORLD_NAME = 'vocab-notebook';
 
-const WORLD_NAME = 'vocab-notebook';
-
-let mirror = null;   // [{ word, added_at, senses, source, srs }] 会话内镜像
-let writing = null;  // 防抖中的 Promise
+let mirror = null;   // [{ word, added_at, senses, source, srs, phonetic, ... }]
+let writing = null;
 let dirty = false;
-let csrfToken = null; // 自己维护的 token，不依赖页面全局状态（兼容前端未初始化 token 的版本）
+let csrfToken = null;
 
 async function getCsrfToken() {
     if (csrfToken) return csrfToken;
@@ -33,94 +26,91 @@ async function getCsrfToken() {
     return csrfToken;
 }
 
-function jsonHeaders(token) {
-    return { 'Content-Type': 'application/json', 'X-CSRF-Token': token };
-}
-
-/** 带一次性 CSRF 重试：403 时清 token 重新要一次再试（应对会话轮换） */
-async function postWithRetry(url, body) {
-    let token = await getCsrfToken();
-    let r = await fetch(url, { method: 'POST', headers: jsonHeaders(token), body: JSON.stringify(body) });
-    if (r.status === 403) {
-        csrfToken = null;
-        token = await getCsrfToken();
-        r = await fetch(url, { method: 'POST', headers: jsonHeaders(token), body: JSON.stringify(body) });
+/** UTF-8 安全的 base64（TextEncoder 分块，防大文件栈溢出） */
+function utf8ToB64(str) {
+    const bytes = new TextEncoder().encode(str);
+    let bin = '';
+    for (let i = 0; i < bytes.length; i += 0x8000) {
+        bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
     }
-    return r;
+    return btoa(bin);
 }
 
-async function apiGet() {
-    const r = await postWithRetry('/api/worldinfo/get', { name: WORLD_NAME });
-    if (!r.ok) throw new Error(`读取生词本失败: HTTP ${r.status}`);
-    return await r.json();
-}
-
-async function apiWrite(data) {
-    const r = await postWithRetry('/api/worldinfo/edit', { name: WORLD_NAME, data });
+async function apiWrite(records) {
+    const data = utf8ToB64(JSON.stringify(records, null, 2));
+    const r = await fetch('/api/files/upload', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': await getCsrfToken(),
+        },
+        body: JSON.stringify({ name: FILE_NAME, data: data }),
+    });
     if (!r.ok) throw new Error(`写入生词本失败: HTTP ${r.status}`);
 }
 
-/** 读文件 → 解析进内存镜像（幂等，会话内只读一次，外部改动后手动 reload） */
+/** 一次性迁移：从旧世界书文件读回词条数组；成功返回记录，无旧文件返回 null */
+async function readOldWorld() {
+    try {
+        const r = await fetch('/api/worldinfo/get', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': await getCsrfToken() },
+            body: JSON.stringify({ name: OLD_WORLD_NAME }),
+        });
+        if (!r.ok) return null;
+        const world = await r.json();
+        const records = [];
+        for (const entry of Object.values(world.entries || {})) {
+            try {
+                const rec = JSON.parse(entry.comment);
+                if (rec && typeof rec.word === 'string') records.push(rec);
+            } catch (e) { /* 跳过损坏条目 */ }
+        }
+        return records;
+    } catch (e) {
+        return null;
+    }
+}
+
+async function apiGet() {
+    const r = await fetch('/user/files/' + FILE_NAME, { cache: 'no-store' });
+    if (r.ok) {
+        const text = await r.text();
+        const arr = JSON.parse(text || '[]');
+        return Array.isArray(arr) ? arr : [];
+    }
+    if (r.status !== 404) throw new Error(`读取生词本失败: HTTP ${r.status}`);
+    // 新文件不存在：尝试从旧世界书迁移
+    const old = await readOldWorld();
+    if (old && old.length > 0) {
+        await apiWrite(old);
+        // 迁移成功后删除旧世界书文件（尽力而为）
+        try {
+            await fetch('/api/worldinfo/delete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+                body: JSON.stringify({ name: OLD_WORLD_NAME }),
+            });
+        } catch (e) { /* 旧文件残留无害 */ }
+        console.info('[Vocab] 已从世界书文件迁移到 files 目录：', old.length, '条');
+        return old;
+    }
+    return []; // 全新用户
+}
+
+/** 读文件 → 解析进内存镜像（幂等；force 用于外部改动后手动 reload） */
 export async function load(force = false) {
     if (mirror && !force) return mirror;
-    const world = await apiGet();
+    const records = await apiGet();
     mirror = [];
     let maxUid = 0;
-    for (const [uidStr, entry] of Object.entries(world.entries || {})) {
-        try {
-            const record = JSON.parse(entry.comment);
-            record._uid = Number(uidStr) || entry.uid;
-            maxUid = Math.max(maxUid, record._uid);
-            mirror.push(record);
-        } catch (e) {
-            console.warn('[Vocab] 跳过损坏条目 uid=', uidStr, e);
-        }
+    for (const rec of records) {
+        rec._uid = rec._uid ?? ++maxUid;
+        maxUid = Math.max(maxUid, rec._uid);
+        mirror.push(rec);
     }
     mirror._maxUid = maxUid;
     return mirror;
-}
-
-function toWorldFile(list) {
-    const entries = {};
-    for (const rec of list) {
-        const uid = rec._uid;
-        const { _uid, ...clean } = rec;
-        entries[String(uid)] = {
-            uid: uid,
-            key: [rec.word],
-            keysecondary: [],
-            comment: JSON.stringify(clean),
-            content: '',
-            order: 100,
-            position: 0,
-            depth: 4,
-            selective: false,
-            selectiveLogic: 0,
-            addMemo: true,
-            constant: false,
-            disable: false,
-            addKeys: [],
-            useProbability: false,
-            probability: 100,
-            useGroupWeights: false,
-            group: '',
-            scanDepth: null,
-            caseSensitive: null,
-            matchWholeWords: null,
-            useGroups: false,
-            groupOverride: false,
-            groupWeight: 100,
-            recursionAware: false,
-            excludeRecursion: false,
-            preventRecursion: false,
-            delayUntilRecursion: false,
-            probabilitySequenced: false,
-            sticky: 0,
-            cooldown: null,
-            delay: null,
-        };
-    }
-    return { name: WORLD_NAME, entries: entries };
 }
 
 function scheduleWrite() {
@@ -133,13 +123,22 @@ function scheduleWrite() {
 export async function flush() {
     if (!dirty || !mirror) return;
     dirty = false;
-    const data = toWorldFile(mirror);
-    writing = apiWrite(data).catch(e => {
+    const snapshot = mirror.map(({ _uid, ...rest }) => ({ ...rest, _uid }));
+    writing = apiWrite(snapshot).catch(e => {
         dirty = true; // 失败恢复脏标记，下次重试
         console.error('[Vocab]', e);
         throw e;
     }).finally(() => { writing = null; });
     return writing;
+}
+
+/** 词条关联的音频键：单词本身 + 各义项例句（删词条时联动清理） */
+function audioKeysOf(rec) {
+    const keys = ['v|' + rec.word];
+    for (const s of rec.senses || []) {
+        if (s.example) keys.push('v|' + s.example);
+    }
+    return keys;
 }
 
 /** 立即写（页面隐藏/切页面前兜底） */

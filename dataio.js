@@ -10,8 +10,8 @@ import { idbListKeys, idbDelete } from './fish-tts.js';
 export async function renderDataTab(container) {
     container.innerHTML = `
         <div class="vocab-data-info">
-            生词本存于酒馆数据目录的世界书文件：<code>data/default-user/worlds/vocab-notebook.json</code><br>
-            可直接用编辑器查看备份；也可在世界书界面里浏览（content 为空，不会注入提示词）。
+            生词本就是本地一个格式自由的 JSON 文件：<code>data/default-user/files/vocab-notebook.json</code><br>
+            可直接用编辑器查看、手动备份；扩展内所有改动都会写回这个文件。
         </div>
         <div class="vocab-data-row">
             <button id="vocab-export">导出 JSON（下载）</button>
