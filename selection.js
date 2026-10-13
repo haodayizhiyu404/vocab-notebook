@@ -1,5 +1,7 @@
 /**
- * selection.js · 聊天内选词：选中文字 → 悬浮"＋生词"按钮 → AI 解析入库
+ * selection.js · 聊天内选词收录
+ * - 桌面端：选中文字 → 选区上方浮出"＋ 生词"按钮
+ * - 触屏端：不弹浮动按钮（避免与原生选区面板冲突），走魔法棒菜单"收录生词"
  */
 
 import { getContext } from '../../../extensions.js';
@@ -7,6 +9,7 @@ import * as storage from './storage.js';
 import * as ai from './ai.js';
 import { getConfig } from './config.js';
 
+const isTouch = navigator.maxTouchPoints > 0;
 let floatBtn = null;
 let busy = false;
 
@@ -31,18 +34,22 @@ function selectionInChat(sel) {
     return el?.closest?.('#chat .mes_text') ?? null;
 }
 
-function showBtn(rect, payload) {
-    const btn = ensureBtn();
-    btn.dataset.payload = JSON.stringify(payload);
-    btn.style.display = 'block';
-    // 定位在选区上方，钳制在视口内
-    const top = Math.max(8, rect.top - 34);
-    const left = Math.min(Math.max(8, rect.left), window.innerWidth - 90);
-    btn.style.top = top + 'px';
-    btn.style.left = left + 'px';
+/** 取当前选区（若在聊天内且长度合适）→ 收录所需 payload；否则 null */
+export function getChatSelection() {
+    const sel = window.getSelection();
+    const text = sel ? sel.toString().trim() : '';
+    if (!text || text.length > 120) return null; // 选中过长视为误操作
+    const mesText = selectionInChat(sel);
+    if (!mesText) return null;
+    return {
+        text: text,
+        sentence: getSentenceContext(mesText, text),
+        plot: getPlotSummary(),
+        card: currentCardName(),
+    };
 }
 
-/** 取出处消息整句：从选区所在文本节点所在的块级元素取文本 */
+/** 取出处整句：从选区所在块级元素取文本 */
 function getSentenceContext(mesTextEl, selected) {
     const blocks = mesTextEl.querySelectorAll('p, li, div, blockquote, h1, h2, h3, h4, h5, h6');
     for (const b of blocks) {
@@ -68,12 +75,13 @@ function currentCardName() {
     return '';
 }
 
-async function onBtnClick() {
-    if (busy) return;
-    const payload = JSON.parse(floatBtn.dataset.payload || '{}');
-    if (!payload.text) return;
+/**
+ * 收录：AI 解析 → 入库 → toast。
+ * @param clearSelection 收录后是否清除选区（浮动按钮流程清；菜单流程保留，方便继续用原生翻译）
+ */
+export async function captureSelection(payload, { clearSelection = false } = {}) {
+    if (!payload || busy) return false;
     busy = true;
-    floatBtn.textContent = '解析中…';
     try {
         const record = await ai.lookup(payload.text, payload.sentence, payload.plot, payload.card);
         const added = await storage.add(record);
@@ -83,37 +91,45 @@ async function onBtnClick() {
             toastr.info(`「${record.word}」已在生词本中`, '生词本', { timeOut: 2000 });
         }
         document.dispatchEvent(new CustomEvent('vocab-changed'));
+        if (clearSelection) window.getSelection()?.removeAllRanges();
+        return true;
     } catch (e) {
         console.error('[Vocab]', e);
         toastr.error('收录失败：' + e.message, '生词本', { timeOut: 5000 });
+        return false;
     } finally {
         busy = false;
-        floatBtn.textContent = '＋ 生词';
-        hideBtn();
-        window.getSelection()?.removeAllRanges();
     }
+}
+
+function showBtn(rect, payload) {
+    const btn = ensureBtn();
+    btn.dataset.payload = JSON.stringify(payload);
+    btn.style.display = 'block';
+    const top = Math.max(8, rect.top - 34);
+    const left = Math.min(Math.max(8, rect.left), window.innerWidth - 90);
+    btn.style.top = top + 'px';
+    btn.style.left = left + 'px';
 }
 
 export function initSelection() {
     const btn = ensureBtn();
-    btn.onclick = onBtnClick;
+    btn.onclick = () => {
+        const payload = JSON.parse(floatBtn.dataset.payload || '{}');
+        captureSelection(payload, { clearSelection: true }).then((ok) => { if (ok) hideBtn(); });
+    };
 
     document.addEventListener('mouseup', (e) => {
         if (e.target === btn || btn.contains(e.target)) return;
+        if (isTouch) return; // 触屏走魔法棒菜单，不弹浮动按钮
         setTimeout(() => {
-            if (!getConfig().captureEnabled) { hideBtn(); return; } // 总开关关闭时不收录
+            if (!getConfig().captureEnabled) { hideBtn(); return; }
             const sel = window.getSelection();
-            const text = sel ? sel.toString().trim() : '';
-            const mesText = text ? selectionInChat(sel) : null;
-            if (!text || !mesText) { hideBtn(); return; }
-            if (text.length > 120) { hideBtn(); return; } // 选中过长视为误操作
+            if (!sel || sel.isCollapsed || !sel.toString().trim()) { hideBtn(); return; }
             const rect = sel.getRangeAt(0).getBoundingClientRect();
-            showBtn(rect, {
-                text: text,
-                sentence: getSentenceContext(mesText, text),
-                plot: getPlotSummary(),
-                card: currentCardName(),
-            });
+            const payload = getChatSelection();
+            if (!payload) { hideBtn(); return; }
+            showBtn(rect, payload);
         }, 10);
     });
 
